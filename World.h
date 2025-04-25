@@ -12,6 +12,7 @@ class OrgWorld : public emp::World<Organism>
 
     emp::Random &random;
     emp::Ptr<emp::Random> random_ptr;
+    int points = 0;
 
 public:
     OrgWorld(emp::Random &_random) : emp::World<Organism>(_random), random(_random)
@@ -23,37 +24,40 @@ public:
     {
     }
 
+    emp::Ptr<Organism> ExtractOrganism(int i)
+    {
+        emp::Ptr<Organism> org = pop[i];
+        pop[i] = nullptr;
+        return org;
+    }
+
     void Update()
     {
         emp::World<Organism>::Update();
         std::cout << "Updating!" << std::endl; // feel free to get rid of this
 
-        for (int i = 0; i < GetSize(); i++)
+        // Get a permutation and loop it to give everyone 100 points
+        emp::vector<size_t> schedule = emp::GetPermutation(random, GetSize());
+        for (int i : schedule)
         {
             if (!IsOccupied(i))
-                continue;           // skip if org is null
-            Organism *org = pop[i]; // grabs the org from the vector pop
+                continue; // skip if org is null
+            pop[i]->Process(points);
+        }
+        // See if anyone can reproduce
+        schedule = emp::GetPermutation(random, GetSize());
 
-            // Get a permutation and loop it to give everyone 100 points
-            emp::vector<size_t> schedule = emp::GetPermutation(random, GetSize());
-            for (int i : schedule)
+        for (int i : schedule)
+        {
+            if (!IsOccupied(i))
+                continue; // skip if org is null
+            emp::Ptr<Organism> offspring = pop[i]->CheckReproduction();
+            if (offspring)
             {
-                if (!IsOccupied(i))
-                    continue; // skip if org is null
-                pop[i]->Process(100);
+                DoBirth(*offspring, i);
             }
-            // See if anyone can reproduce
-            schedule = emp::GetPermutation(random, GetSize());
-            for (int i : schedule)
-            {
-                if (!IsOccupied(i))
-                    continue; // skip if org is null
-                emp::Ptr<Organism> offspring = pop[i]->CheckReproduction();
-                if (offspring)
-                {
-                    DoBirth(*offspring, i);
-                }
-            }
+
+            AddOrgAt(ExtractOrganism(i), GetRandomNeighborPos(i));
         }
     }
 };
